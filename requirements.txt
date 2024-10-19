@@ -4,6 +4,7 @@ numpy
 pandas
 navpy
 matplotlib
+scipy
 
 
 

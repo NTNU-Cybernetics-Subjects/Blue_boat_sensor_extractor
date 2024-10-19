@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 # from matplotlib import pyplot as plt
 from navpy import lla2ned
+from scipy.signal import savgol_filter
 
 
 # Basestation-bench  (found on google maps)
@@ -91,7 +92,7 @@ def differentiate(array, dt):
     dx_dt = np.zeros(n)
     dx_dt[1:-1] = (array[2:] - array[:-2])/(2*dt)
     return dx_dt
-    
+
 
 def latlon_2_ned(lat, lon, att):
     ned = lla2ned(
