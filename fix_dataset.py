@@ -2,14 +2,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 from navpy import lla2ned
-import navpy
 
-RAW_DATA_FOLDER = Path(__file__).resolve().parent.joinpath("raw_data")
-sorted_data_folder = Path(__file__).resolve().parent.joinpath("sorted_data")
-
-raw_data_files = [file.name for file in RAW_DATA_FOLDER.glob("*.csv")]
 
 # Basestation-bench  (found on google maps)
 REF_LON = 10.314897
@@ -136,7 +131,7 @@ def validate_timestamps(time_steps: np.ndarray) -> bool:
     return valid
 
 
-def fix_all_data(df: pd.DataFrame):
+def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
     t = df['timestamp(ms)'].to_numpy()
     lat = df['GPS.Lat'].to_numpy() / 10000000
     lon = df['GPS.Lng'].to_numpy() / 10000000
@@ -191,9 +186,12 @@ def fix_all_data(df: pd.DataFrame):
      
     # yaw_acc
     dr = differentiate(yaw, step)
- 
+     
     return pd.DataFrame({
-        "origional_timestamp": t,
+        "original_timestamp": t,
+        "lat": lat,
+        "lon": lon,
+        "alt": alt,
         "x_ned": xn,
         "y_ned": yn,
         "yaw": yaw,
@@ -213,77 +211,27 @@ def fix_all_data(df: pd.DataFrame):
         "thr_right_pwm_zero_point": right_pwm_zero_point
     })
 
-def fix_files(files: list):
+def fix_files(folder: Path, files: list, fileout):
 
     print(f"Extracting data, found {len(raw_data_files)} files")
     dataframes = []
     for file in files:
         print(f"{len(dataframes)}. doing file {file}")
 
-        full_file_path = RAW_DATA_FOLDER.joinpath(file)
+        full_file_path = folder.joinpath(file)
         raw_df = pd.read_csv(full_file_path)
-        corrected_df = fix_all_data(raw_df)
+        corrected_df = fix_dataset(raw_df)
         dataframes.append(corrected_df)
-    
-    full_df = pd.concat(dataframes)
-    full_df.to_csv("full_dataset.csv")
-
  
-def analyse(df: pd.DataFrame):
-    t = df['timestamp(ms)'].to_numpy()
-    u_dot = df['IMU.AccX'].to_numpy()
-    v_dot = df['IMU.AccY'].to_numpy()
-
-
-    duration = (t[-1] - t[0])/1000 # secounds
-    # print("duration", duration)
-    step = 0.1
-    tt = np.arange(0, duration+step, step)
-    # print(tt)
-
-
-    u_bias = calculate_bias_acc(u_dot)
-    u_dot_corr = correct_for_bias(u_dot, u_bias)
-
-    v_bias = calculate_bias_acc(v_dot)
-    v_dot_corr = correct_for_bias(v_dot, v_bias)
-
-    plot_acc(t, u_dot, u_dot_corr, v_dot, v_dot_corr)
-
-def plot_acc(t, u_dot, u_dot_corr, v_dot, v_dot_corr):
-    _, (ax1, ax2) = plt.subplots(1,2, figsize=(20, 5))
-
-    ax1.plot(t, u_dot, label="u_dot")
-    ax1.plot(t, u_dot_corr, label="u_dot_corr")
-    ax1.set_title("u_dot")
-    ax1.grid(True)
-    ax1.legend()
-
-    ax2.plot(t, v_dot, label="v_dot")
-    ax2.plot(t, v_dot_corr, label="v_dot_corr")
-    ax2.set_title("v_dot")
-    ax2.grid(True)
-    ax2.legend()
-
-    plt.show(block=False)
-    plt.waitforbuttonpress()
-    plt.close()
-
-
-def analyse_all():
-    for file in raw_data_files:
-        print(file)
-        full_file = RAW_DATA_FOLDER.joinpath(file)
-        df = pd.read_csv(full_file)
-        analyse(df)
-
+    print(f"Finished fixing {len(dataframes)} files.")
+    print(f"Concatnating all files to {fileout}.csv")
+    full_df = pd.concat(dataframes)
+    full_df.to_csv(f"{fileout}.csv")
 
 
 if __name__ == '__main__':
-    # analyse_all()
-
-    fix_files(raw_data_files)
-
-
-
+    raw_data_folder = Path(__file__).resolve().parent.joinpath("raw_data")
+    raw_data_files = [file.name for file in raw_data_folder.glob("*.csv")]
+    filename = "full_dataset"
+    fix_files(raw_data_folder, raw_data_files, filename)
 
