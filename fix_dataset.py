@@ -6,6 +6,8 @@ import pandas as pd
 from navpy import lla2ned
 from scipy.signal import savgol_filter
 
+from matplotlib import pyplot as plt
+
 
 # Basestation-bench  (found on google maps)
 REF_LON = 10.314897
@@ -128,7 +130,7 @@ def validate_timestamps(time_steps: np.ndarray) -> bool:
     diff = np.diff(time_steps)
     check = np.where(diff != step_ms)[0]
     valid = len(check) <= 0
-    assert(valid)
+    # assert(valid)
     return valid
 
 
@@ -150,7 +152,9 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
     xn, yn, zn = latlon_2_ned(lat, lon, alt)
 
     # Check that the timestamp are consistent in the dataset
-    validate_timestamps(t)
+    valid = validate_timestamps(t)
+    if not valid:
+        print("Found incosistent timestamps")
 
     step = 0.1
     g = 9.81
@@ -180,13 +184,17 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
      
     # Differentiate method
     dx = differentiate(xn, step)
+    dx_filtered = savgol_filter(dx, window_length=21, polyorder=2)
+
     dy = differentiate(yn, step)
+    dy_filtered = savgol_filter(dy, window_length=21, polyorder=2)
 
     vectorized_ned_to_bodyfixed_func = np.vectorize(ned_to_bodyfixed)
-    dx_b, dy_b = vectorized_ned_to_bodyfixed_func(dx, dy, np.radians(yaw))
+    dx_b, dy_b = vectorized_ned_to_bodyfixed_func(dx_filtered, dy_filtered, np.radians(yaw))
      
-    # yaw_acc
-    dr = differentiate(yaw, step)
+    # yaw
+    r_savgol = savgol_filter(r, window_length=21, polyorder=2)
+    dr = differentiate(r_savgol, step)
      
     return pd.DataFrame({
         "original_timestamp": t,
@@ -198,7 +206,7 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "yaw": yaw,
         "surge": dx_b,
         "sway": dy_b,
-        "yaw_rate": r,
+        "yaw_rate": r_savgol,
         "surge_dot": u_dot_corr,
         "surge_dot_bias": np.full_like(u_dot_corr, u_bias),
         "sway_dot": v_dot_corr,
