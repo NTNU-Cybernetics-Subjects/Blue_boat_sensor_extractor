@@ -239,8 +239,15 @@ def fix_files(folder: Path, files: list, fileout):
 
 
 if __name__ == '__main__':
+    # Make main dataset
     raw_data_folder = Path(__file__).resolve().parent.joinpath("raw_data")
     raw_data_files = [file.name for file in raw_data_folder.glob("*.csv")]
-    filename = "full_dataset"
-    fix_files(raw_data_folder, raw_data_files, filename)
+    out_file_main = "full_dataset"
+    fix_files(raw_data_folder, raw_data_files, out_file_main)
+
+    # Make validation dataset
+    raw_validation_data_folder = raw_data_folder.joinpath("test_set")
+    raw_validation_data_files = [file.name for file in raw_validation_data_folder.glob("*.csv")]
+    out_file_validation = "validation_dataset"
+    fix_files(raw_validation_data_folder, raw_validation_data_files, out_file_validation)
 
