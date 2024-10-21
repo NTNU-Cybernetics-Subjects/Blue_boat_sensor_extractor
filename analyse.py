@@ -70,6 +70,7 @@ def analyse_acc_bias_correction_all_files(folder: Path, files: list):
 
 def plot_all_positions():
     for file in raw_data_files:
+        print(file)
         raw_df = pd.read_csv(RAW_DATA_FOLDER.joinpath(file))
         df = fix_dataset.fix_dataset(raw_df)
 
@@ -188,38 +189,38 @@ def full_analyse_test(df: pd.DataFrame):
     yaw_acc_savgol = butter_lowpass_filter(yaw_acc, 0.5, 1/step)
 
     # plt.plot(t, surge_dot, label="surge_dot")
-    # plt.plot(t, surge_dot_savgol, label="surge_dot_savgol")
+    plt.plot(t, surge_dot_savgol, label="surge_dot_savgol")
     # plt.plot(t, surge_dot_butter, label="surge_dot_butter")
     
     # plt.plot(t, surge_dot_trap, label="surge trapz")
     # plt.plot(t, surge_dot_integrated, label="surge int")
-    # plt.plot(t, surge, label="surge der")
+    plt.plot(t, surge, label="surge der")
     # plt.plot(t, surge_fuse, label="surge fuse")
     #
-    plt.plot(t, yaw_acc, label="yaw acc")
-    plt.plot(t, yaw_acc_savgol, label="yaw acc_filt")
-    plt.plot(t, yaw_rate, label="yaw rate")
-    plt.plot(t, yaw_rate_savgol, label="yaw rate savgol")
-    plt.plot(t, yaw_rate_butter, label="yaw rate butter")
+    # plt.plot(t, yaw_acc, label="yaw acc")
+    # plt.plot(t, yaw_acc_savgol, label="yaw acc_filt")
+    # plt.plot(t, yaw_rate, label="yaw rate")
+    # plt.plot(t, yaw_rate_savgol, label="yaw rate savgol")
+    # plt.plot(t, yaw_rate_butter, label="yaw rate butter")
 
 
     # plt.plot(t, sway_dot, label="sway_dot")
-    # plt.plot(t, sway_dot_filtered, label="sway_dot_filtered")
+    plt.plot(t, sway_dot_filtered, label="sway_dot_filtered")
     
     # plt.plot(t, sway_dot_integrated, label="sway int")
-    # plt.plot(t, sway, label="swayder")
+    plt.plot(t, sway, label="sway der")
     # plt.plot(t, sway_fuse, label="sway fuse")
 
 
-    # plt.plot(t, sway)
-    # plt.plot(t, abs_speed)
-    # plt.plot(t, max_speed)
+    # plt.plot(t, sway, label="sawy")
+    # plt.plot(t, abs_speed, label="abs_speed")
+    # plt.plot(t, max_speed, label="max_speed")
     show_plot(True)
 
 
 
 
-filename = "raw_data/00000218.csv"
+filename = "raw_data/00000224.csv"
 # filename = "full_dataset.csv"
 # raw_df = fake_full()
 raw_df = pd.read_csv(filename)
