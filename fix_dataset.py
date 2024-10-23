@@ -235,6 +235,8 @@ def fix_files(folder: Path, files: list, fileout):
     print(f"Finished fixing {len(dataframes)} files.")
     print(f"Concatnating all files to {fileout}.csv")
     full_df = pd.concat(dataframes)
+    full_df.reset_index(drop=True) # Resets all the indexes
+    print("Resetting index")
     full_df.to_csv(f"{fileout}.csv")
 
 
