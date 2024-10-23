@@ -189,12 +189,12 @@ def full_analyse_test(df: pd.DataFrame):
     yaw_acc_savgol = butter_lowpass_filter(yaw_acc, 0.5, 1/step)
 
     # plt.plot(t, surge_dot, label="surge_dot")
-    plt.plot(t, surge_dot_savgol, label="surge_dot_savgol")
+    # plt.plot(t, surge_dot_savgol, label="surge_dot_savgol")
     # plt.plot(t, surge_dot_butter, label="surge_dot_butter")
     
     # plt.plot(t, surge_dot_trap, label="surge trapz")
     # plt.plot(t, surge_dot_integrated, label="surge int")
-    plt.plot(t, surge, label="surge der")
+    # plt.plot(t, surge, label="surge der")
     # plt.plot(t, surge_fuse, label="surge fuse")
     #
     # plt.plot(t, yaw_acc, label="yaw acc")
@@ -207,9 +207,9 @@ def full_analyse_test(df: pd.DataFrame):
     # plt.plot(t, sway_dot, label="sway_dot")
     plt.plot(t, sway_dot_filtered, label="sway_dot_filtered")
     
-    # plt.plot(t, sway_dot_integrated, label="sway int")
+    plt.plot(t, sway_dot_integrated, label="sway int")
     plt.plot(t, sway, label="sway der")
-    # plt.plot(t, sway_fuse, label="sway fuse")
+    plt.plot(t, sway_fuse, label="sway fuse")
 
 
     # plt.plot(t, sway, label="sawy")
@@ -220,12 +220,12 @@ def full_analyse_test(df: pd.DataFrame):
 
 
 
-filename = "raw_data/00000224.csv"
+filename = "raw_data/00000232.csv"
 # filename = "full_dataset.csv"
 # raw_df = fake_full()
 raw_df = pd.read_csv(filename)
 df = fix_dataset.fix_dataset(raw_df)
-full_analyse_test(df)
+# full_analyse_test(df)
 # plot_all_positions()
 
 # step = 0.1
