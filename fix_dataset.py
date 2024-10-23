@@ -282,6 +282,9 @@ if __name__ == '__main__':
 
     fix_files(raw_data_folder, raw_data_files, sorted_data_folder)
 
+    # Join data to full set.
+    concatenate_files(sorted_data_folder, "FULL_DATASET.csv")
+
     # Make validation dataset
     # raw_validation_data_folder = raw_data_folder.joinpath("test_set")
     # raw_validation_data_files = [file.name for file in raw_validation_data_folder.glob("*.csv")]
