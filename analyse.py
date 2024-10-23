@@ -205,11 +205,13 @@ def full_analyse_test(df: pd.DataFrame):
 
 
     # plt.plot(t, sway_dot, label="sway_dot")
-    plt.plot(t, sway_dot_filtered, label="sway_dot_filtered")
+    # plt.plot(t, sway_dot_filtered, label="sway_dot_filtered")
     
-    plt.plot(t, sway_dot_integrated, label="sway int")
-    plt.plot(t, sway, label="sway der")
-    plt.plot(t, sway_fuse, label="sway fuse")
+    # plt.plot(t, sway_dot_integrated, label="sway int")
+    # plt.plot(t, sway, label="sway der")
+    # plt.plot(t, sway_fuse, label="sway fuse")
+    plt.plot(t, right_force, label="right force")
+    plt.plot(t, left_force, label="left force")
 
 
     # plt.plot(t, sway, label="sawy")
@@ -220,12 +222,12 @@ def full_analyse_test(df: pd.DataFrame):
 
 
 
-filename = "raw_data/00000232.csv"
+filename = "raw_data/00000218.csv"
 # filename = "full_dataset.csv"
 # raw_df = fake_full()
 raw_df = pd.read_csv(filename)
 df = fix_dataset.fix_dataset(raw_df)
-# full_analyse_test(df)
+full_analyse_test(df)
 # plot_all_positions()
 
 # step = 0.1
