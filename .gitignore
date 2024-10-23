@@ -1,4 +1,6 @@
 raw_data
 sorted_data
 venv
+FULL_DATASET*
+sorted_data.zip
 __pycache__
