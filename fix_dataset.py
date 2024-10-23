@@ -220,36 +220,71 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "thr_right_pwm_zero_point": right_pwm_zero_point
     })
 
-def fix_files(folder: Path, files: list, fileout):
+# def fix_files(folder: Path, files: list, fileout):
+#
+#     print(f"Extracting data, found {len(raw_data_files)} files")
+#     dataframes = []
+#     for file in files:
+#         print(f"{len(dataframes)}. doing file {file}")
+#
+#         full_file_path = folder.joinpath(file)
+#         raw_df = pd.read_csv(full_file_path)
+#         corrected_df = fix_dataset(raw_df)
+#         dataframes.append(corrected_df)
+#
+#     print(f"Finished fixing {len(dataframes)} files.")
+#     print(f"Concatnating all files to {fileout}.csv")
+#     full_df = pd.concat(dataframes)
+#     full_df.reset_index(drop=True) # Resets all the indexes
+#     print("Resetting index")
+#     full_df.to_csv(f"{fileout}.csv")
 
-    print(f"Extracting data, found {len(raw_data_files)} files")
+def fix_files(source_folder: Path, files: list, target_folder: Path):
+
+    print(f"Found {len(raw_data_files)} files in {source_folder}")
+    print(f"Saving fixed file[s] to {target_folder}")
+
+    for file in files:
+        print(f"Fixing {file} ... ", end="")
+        full_source_file_path = source_folder.joinpath(file)
+        raw_df = pd.read_csv(full_source_file_path)
+        corrected_df = fix_dataset(raw_df)
+
+
+        out_filename = f"fixed_{file}"
+        full_target_file_path = target_folder.joinpath(out_filename)
+        corrected_df.to_csv(full_target_file_path)
+        print("complete.")
+
+def concatenate_files(source_folder: Path, outfile: str):
+    """concatenates all csv files in source_folder to outfile.csv. 
+        Assumes all datasets have the same columns."""
+    
+    files = [file.name for file in source_folder.glob("*.csv")]
+    print(f"Joining {files} \nto {outfile}")
     dataframes = []
     for file in files:
-        print(f"{len(dataframes)}. doing file {file}")
+        full_source_file = source_folder.joinpath(file)
+        df = pd.read_csv(full_source_file)
+        dataframes.append(df)
 
-        full_file_path = folder.joinpath(file)
-        raw_df = pd.read_csv(full_file_path)
-        corrected_df = fix_dataset(raw_df)
-        dataframes.append(corrected_df)
- 
-    print(f"Finished fixing {len(dataframes)} files.")
-    print(f"Concatnating all files to {fileout}.csv")
-    full_df = pd.concat(dataframes)
-    full_df.reset_index(drop=True) # Resets all the indexes
-    print("Resetting index")
-    full_df.to_csv(f"{fileout}.csv")
-
+    joined_df = pd.concat(dataframes)
+    joined_df.reset_index(drop=True)
+    joined_df.to_csv(outfile)
 
 if __name__ == '__main__':
     # Make main dataset
-    raw_data_folder = Path(__file__).resolve().parent.joinpath("raw_data")
+    root_folder = Path(__file__).resolve().parent
+    raw_data_folder = root_folder.joinpath("raw_data")
+    sorted_data_folder = root_folder.joinpath("sorted_data")
+
     raw_data_files = [file.name for file in raw_data_folder.glob("*.csv")]
-    out_file_main = "full_dataset"
-    fix_files(raw_data_folder, raw_data_files, out_file_main)
+
+    fix_files(raw_data_folder, raw_data_files, sorted_data_folder)
 
     # Make validation dataset
-    raw_validation_data_folder = raw_data_folder.joinpath("test_set")
-    raw_validation_data_files = [file.name for file in raw_validation_data_folder.glob("*.csv")]
-    out_file_validation = "validation_dataset"
-    fix_files(raw_validation_data_folder, raw_validation_data_files, out_file_validation)
+    # raw_validation_data_folder = raw_data_folder.joinpath("test_set")
+    # raw_validation_data_files = [file.name for file in raw_validation_data_folder.glob("*.csv")]
+    # out_file_validation = "validation_dataset"
+    # fix_files(raw_validation_data_folder, raw_validation_data_files, out_file_validation)
 
