@@ -154,6 +154,8 @@ def full_analyse_test(df: pd.DataFrame):
     right_force = df['right_force'].to_numpy()
     left_force = df['left_force'].to_numpy()
 
+    gps_dot_dot = df["gps_dot_dot"].to_numpy()
+
     thr_left_pwm_zero_point = df['thr_left_pwm_zero_point'].to_numpy()
     thr_right_pwm_zero_point = df['thr_right_pwm_zero_point'].to_numpy()
 
@@ -172,7 +174,7 @@ def full_analyse_test(df: pd.DataFrame):
     surge_dot_integrated = fix_dataset.integrate(surge_dot_savgol, 0.1)
 
     sway_dot_filtered = savgol_filter(sway_dot, window_length=21, polyorder=3)
-    sway_dot_integrated = fix_dataset.integrate(sway_dot_filtered, 0.1)
+    sway_dot_integrated = fix_dataset.integrate(sway_dot_filtered, 0.1) 
 
     alpha = 0.95
     surge_fuse = alpha * surge + (1-alpha)*surge_dot_trap
@@ -208,10 +210,17 @@ def full_analyse_test(df: pd.DataFrame):
     # plt.plot(t, sway_dot_filtered, label="sway_dot_filtered")
     
     # plt.plot(t, sway_dot_integrated, label="sway int")
+    # plt.plot(t, y_ned, label="y")
     # plt.plot(t, sway, label="sway der")
+    # plt.plot(t, gps_dot_dot, label="gps dot dot")
     # plt.plot(t, sway_fuse, label="sway fuse")
-    plt.plot(t, right_force, label="right force")
-    plt.plot(t, left_force, label="left force")
+    #
+    # plt.plot(t, right_force, label="right force")
+    # plt.plot(t, left_force, label="left force")
+    plt.plot(t, thr_left, label="pwm speed C3IN")
+    plt.plot(t, thr_right, label="pwm rot C1IN")
+
+    # plt.plot(y_ned, x_ned)
 
 
     # plt.plot(t, sway, label="sawy")
@@ -222,7 +231,8 @@ def full_analyse_test(df: pd.DataFrame):
 
 
 
-filename = "raw_data/00000218.csv"
+# filename = "raw_data/00000232.csv"
+filename = "raw_data/225.csv"
 # filename = "full_dataset.csv"
 # raw_df = fake_full()
 raw_df = pd.read_csv(filename)

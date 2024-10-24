@@ -35,48 +35,75 @@ def calculate_pwm_zero_point(array):
 def correct_for_bias(array, bias):
     return array - bias
 
-def map_rcou_1_value(old_value, zero_point):
-
-    if old_value == zero_point:
-        return 0
-
-    elif 1100 <= old_value < zero_point:
-        # Linear increase from 1100 to 1505 (0 to 5.63)
-        return 5.63 * (zero_point - old_value) / (zero_point - 1100)
-
-    elif 1505 < old_value <= 1900:
-        # Linear decrease from 1505 to 1900 (0 to -2.81)
-        return -2.81 * (old_value - zero_point) / (1900 - zero_point)
-
-    elif old_value <= 1100:
-        # For values under 1100 just map it to 5.63
-        return 5.63
-
-    elif old_value >= 1900:
-        # For values over 1900 just map it to -2.81
-        return -2.81
+# def map_rcou_1_value(old_value, zero_point):
+#
+#     if old_value == zero_point:
+#         return 0
+#
+#     elif 1100 <= old_value < zero_point:
+#         # Linear increase from 1100 to 1505 (0 to 5.63)
+#         return 5.63 * (zero_point - old_value) / (zero_point - 1100)
+#
+#     elif 1505 < old_value <= 1900:
+#         # Linear decrease from 1505 to 1900 (0 to -2.81)
+#         return -2.81 * (old_value - zero_point) / (1900 - zero_point)
+#
+#     elif old_value <= 1100:
+#         # For values under 1100 just map it to 5.63
+#         return 5.63
+#
+#     elif old_value >= 1900:
+#         # For values over 1900 just map it to -2.81
+#         return -2.81
 
 # RCOU_C3 = right motor
-def map_rcou_3_value(old_value, zero_point):
+# def map_rcou_3_value(old_value, zero_point):
+#
+#     if old_value == zero_point:
+#         return 0
+#
+#     elif 1100 <= old_value < zero_point:
+#         # Linear decrease from 1505 to 1900 (0 to -2.81)
+#         return -2.81 * (zero_point - old_value) / (zero_point - 1100)
+#
+#     elif 1505 < old_value <= 1900:
+#         # Linear increase from 1100 to 1505 (0 to 5.63)
+#         return 5.63 * (old_value - zero_point ) / (1900 - zero_point)
+#
+#     elif old_value <= 1100:
+#         # For values under 1100 just map it to 5.63
+#         return -2.81
+#
+#     elif old_value >= 1900:
+#         # For values over 1900 just map it to -2.81
+#         return 5.63
 
-    if old_value == zero_point:
+def map_C3IN_to_force(pwm, zero_point):
+
+    g = 9.81
+    max_backward_force = -2.81 * 2 * g
+    max_forward_force = 5.63 * 2 * g
+
+    # PWM signal should not be outside boundary
+    if pwm < 1100:
+        pwm = 1100
+    elif pwm < 1900:
+        pwm = 1900
+
+    if pwm == zero_point:
         return 0
 
-    elif 1100 <= old_value < zero_point:
-        # Linear decrease from 1505 to 1900 (0 to -2.81)
-        return -2.81 * (zero_point - old_value) / (zero_point - 1100)
+    elif 1100 <= pwm < zero_point:
+        # Linear decrease from zero_point to 1900 (0 to -2.81)
+        return max_backward_force * (zero_point - pwm) / (zero_point - 1100)
 
-    elif 1505 < old_value <= 1900:
-        # Linear increase from 1100 to 1505 (0 to 5.63)
-        return 5.63 * (old_value - zero_point ) / (1900 - zero_point)
+    elif zero_point < pwm <= 1900:
+        # Linear increase from 1100 to zero_point (0 to 5.63)
+        return max_forward_force * (pwm - zero_point ) / (1900 - zero_point)
 
-    elif old_value <= 1100:
-        # For values under 1100 just map it to 5.63
-        return -2.81
+def map_C1IN_to_moment(pwm, zero_point):
+    pass
 
-    elif old_value >= 1900:
-        # For values over 1900 just map it to -2.81
-        return 5.63
 
 def integrate(array, dt):
     n = len(array)
@@ -118,7 +145,6 @@ def ned_to_bodyfixed(xn,yn,yaw)-> tuple[np.dtype, np.dtype]:
     vn = np.array([
         [xn],
         [yn]
-
     ])
     vb = np.dot(R, vn).flatten()
     return vb[0], vb[1]
@@ -146,8 +172,11 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
     u_dot = df['IMU.AccX'].to_numpy()
     v_dot = df['IMU.AccY'].to_numpy()
 
-    thr_left = df['RCOU.C1'].to_numpy()
-    thr_right = df['RCOU.C3'].to_numpy()
+    # thr_left = df['RCOU.C1'].to_numpy()
+    # thr_right = df['RCOU.C3'].to_numpy()
+
+    thr_right = df['RCIN.C1'].to_numpy()
+    thr_left = df['RCIN.C3'].to_numpy()
 
     xn, yn, zn = latlon_2_ned(lat, lon, alt)
 
@@ -167,14 +196,17 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
     v_dot_corr = correct_for_bias(v_dot, v_bias)
 
     # Map pwm thruster signals to force
-    vectorized_left_thr_fun = np.vectorize(map_rcou_1_value)
-    vectorized_right_thr_fun = np.vectorize(map_rcou_3_value)
+    # vectorized_left_thr_fun = np.vectorize(map_rcou_1_value)
+    # vectorized_right_thr_fun = np.vectorize(map_rcou_3_value)
 
     left_pwm_zero_point = calculate_pwm_zero_point(thr_left)
     right_pwm_zero_point = calculate_pwm_zero_point(thr_right)
 
-    left_force = vectorized_left_thr_fun(thr_left, left_pwm_zero_point) * g # N
-    right_force = vectorized_right_thr_fun(thr_right, right_pwm_zero_point) * g # N
+    # left_force = vectorized_left_thr_fun(thr_left, left_pwm_zero_point) * g # N
+    # right_force = vectorized_right_thr_fun(thr_right, right_pwm_zero_point) * g # N
+    left_force = np.zeros(len(t))
+    right_force = np.zeros(len(t))
+    
 
     ## Calculate u and v
     
@@ -191,6 +223,9 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
 
     vectorized_ned_to_bodyfixed_func = np.vectorize(ned_to_bodyfixed)
     dx_b, dy_b = vectorized_ned_to_bodyfixed_func(dx_filtered, dy_filtered, np.radians(yaw))
+
+    dy_dy = differentiate(dy_b, step)
+    dy_dy_filtered = savgol_filter(dy_dy, window_length=21, polyorder=2)
      
     # yaw
     r_savgol = savgol_filter(r, window_length=21, polyorder=2)
@@ -210,6 +245,7 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "surge_dot": u_dot_corr,
         "surge_dot_bias": np.full_like(u_dot_corr, u_bias),
         "sway_dot": v_dot_corr,
+        "gps_dot_dot": dy_dy_filtered,
         "sway_dot_bias": np.full_like(v_dot_corr, v_bias),
         "yaw_acc": dr,
         "thr_left": thr_left,
