@@ -87,22 +87,40 @@ def map_C3IN_to_force(pwm, zero_point):
     # PWM signal should not be outside boundary
     if pwm < 1100:
         pwm = 1100
-    elif pwm < 1900:
+    elif pwm > 1900:
+        pwm = 1900
+
+    force = 0
+    if pwm == zero_point:
+        force =  0
+
+    elif 1100 <= pwm < zero_point:
+        # Linear decrease from zero_point to 1900 (0 to -2.81) 
+        force =  max_backward_force * (zero_point - pwm) / (zero_point - 1100)
+
+    elif zero_point < pwm <= 1900:
+        # Linear increase from 1100 to zero_point (0 to 5.63)
+        force =  max_forward_force * (pwm - zero_point ) / (1900 - zero_point)
+
+    return force
+
+def map_C1IN_to_moment(pwm, zero_point):
+
+    max_moment = 23.59
+
+    if pwm < 1100:
+        pwm = 1100
+    elif pwm > 1900:
         pwm = 1900
 
     if pwm == zero_point:
         return 0
-
+    
     elif 1100 <= pwm < zero_point:
-        # Linear decrease from zero_point to 1900 (0 to -2.81)
-        return max_backward_force * (zero_point - pwm) / (zero_point - 1100)
+        return -max_moment * (zero_point - pwm) / (zero_point - 1100)
 
     elif zero_point < pwm <= 1900:
-        # Linear increase from 1100 to zero_point (0 to 5.63)
-        return max_forward_force * (pwm - zero_point ) / (1900 - zero_point)
-
-def map_C1IN_to_moment(pwm, zero_point):
-    pass
+        return max_moment * (pwm - zero_point ) / (1900 - zero_point)
 
 
 def integrate(array, dt):
@@ -175,8 +193,8 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
     # thr_left = df['RCOU.C1'].to_numpy()
     # thr_right = df['RCOU.C3'].to_numpy()
 
-    thr_right = df['RCIN.C1'].to_numpy()
-    thr_left = df['RCIN.C3'].to_numpy()
+    pwm_rotation = df['RCIN.C1'].to_numpy()
+    pwm_forwared = df['RCIN.C3'].to_numpy()
 
     xn, yn, zn = latlon_2_ned(lat, lon, alt)
 
@@ -198,14 +216,21 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
     # Map pwm thruster signals to force
     # vectorized_left_thr_fun = np.vectorize(map_rcou_1_value)
     # vectorized_right_thr_fun = np.vectorize(map_rcou_3_value)
-
-    left_pwm_zero_point = calculate_pwm_zero_point(thr_left)
-    right_pwm_zero_point = calculate_pwm_zero_point(thr_right)
-
+    #
     # left_force = vectorized_left_thr_fun(thr_left, left_pwm_zero_point) * g # N
     # right_force = vectorized_right_thr_fun(thr_right, right_pwm_zero_point) * g # N
-    left_force = np.zeros(len(t))
-    right_force = np.zeros(len(t))
+
+    pwm_rotation_zero = calculate_pwm_zero_point(pwm_rotation)
+    pwm_forward_zero = calculate_pwm_zero_point(pwm_forwared)
+
+    pwm_rotation_map_vectoried_func = np.vectorize(map_C1IN_to_moment)
+    rotation_force = pwm_rotation_map_vectoried_func(pwm_rotation, pwm_rotation_zero)
+
+    pwm_forward_map_vectorized_func = np.vectorize(map_C3IN_to_force)
+    forward_force = pwm_forward_map_vectorized_func(pwm_forwared, pwm_forward_zero)
+
+    # left_force = np.zeros(len(t))
+    # right_force = np.zeros(len(t))
     
 
     ## Calculate u and v
@@ -245,15 +270,17 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "surge_dot": u_dot_corr,
         "surge_dot_bias": np.full_like(u_dot_corr, u_bias),
         "sway_dot": v_dot_corr,
-        "gps_dot_dot": dy_dy_filtered,
+        "gps_y_dot_dot": dy_dy_filtered,
         "sway_dot_bias": np.full_like(v_dot_corr, v_bias),
         "yaw_acc": dr,
-        "thr_left": thr_left,
-        "thr_right": thr_right,
-        "right_force": right_force,
-        "left_force": left_force,
-        "thr_left_pwm_zero_point": left_pwm_zero_point,
-        "thr_right_pwm_zero_point": right_pwm_zero_point
+        "pwm_rotation": pwm_rotation,
+        "pwm_forward": pwm_forwared,
+        # "right_force": right_force,
+        # "left_force": left_force,
+        "rotation_force": rotation_force,
+        "forward_force": forward_force,
+        "pwm_rotation_zero": pwm_rotation_zero,
+        "pwm_forward_zero": pwm_forward_zero
     })
 
 # def fix_files(folder: Path, files: list, fileout):
