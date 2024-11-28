@@ -5,6 +5,7 @@ pandas
 navpy
 matplotlib
 scipy
+PyQt5
 
 
 
