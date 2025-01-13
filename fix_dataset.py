@@ -216,7 +216,7 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
     # Map pwm thruster signals to force
     # vectorized_left_thr_fun = np.vectorize(map_rcou_1_value)
     # vectorized_right_thr_fun = np.vectorize(map_rcou_3_value)
-    #
+
     # left_force = vectorized_left_thr_fun(thr_left, left_pwm_zero_point) * g # N
     # right_force = vectorized_right_thr_fun(thr_right, right_pwm_zero_point) * g # N
 
@@ -231,14 +231,13 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
 
     # left_force = np.zeros(len(t))
     # right_force = np.zeros(len(t))
-    
 
     ## Calculate u and v
-    
+
     # Integral method
     u_dot_integral = integrate(u_dot_corr, step)
     v_dot_integral = integrate(v_dot_corr, step)
-     
+
     # Differentiate method
     dx = differentiate(xn, step)
     dx_filtered = savgol_filter(dx, window_length=21, polyorder=2)
@@ -251,6 +250,9 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
 
     dy_dy = differentiate(dy_b, step)
     dy_dy_filtered = savgol_filter(dy_dy, window_length=21, polyorder=2)
+
+    dx_dx = differentiate(dx_b, step)
+    dx_dx_filtered = savgol_filter(dx_dx, window_length=21, polyorder=2)
      
     # yaw
     r_savgol = savgol_filter(r, window_length=21, polyorder=2)
@@ -271,6 +273,7 @@ def fix_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "surge_dot_bias": np.full_like(u_dot_corr, u_bias),
         "sway_dot": v_dot_corr,
         "gps_y_dot_dot": dy_dy_filtered,
+        "gps_x_dot_dot": dx_dx_filtered,
         "sway_dot_bias": np.full_like(v_dot_corr, v_bias),
         "yaw_acc": dr,
         "pwm_rotation": pwm_rotation,

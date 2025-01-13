@@ -4,9 +4,13 @@ import fix_dataset
 from pathlib import Path
 
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
 from scipy.signal import savgol_filter, butter, filtfilt
-from scipy.integrate import cumtrapz, simps
+from scipy.integrate import simpson, cumulative_trapezoid
 
+from matlab_settings import matlab_settings, look_like_matlab
+
+# plt.rc('text', usetex=True)
 
 RAW_DATA_FOLDER = Path(__file__).resolve().parent.joinpath("raw_data")
 raw_data_files = [file.name for file in RAW_DATA_FOLDER.glob("*.csv")]
@@ -14,7 +18,7 @@ raw_data_files = [file.name for file in RAW_DATA_FOLDER.glob("*.csv")]
 
 def show_plot(block=False):
     plt.legend()
-    plt.grid(True)
+    # plt.grid(True)
     if block:
         plt.show()
         return
@@ -124,7 +128,7 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
     return filtered_data
 
 
-def full_analyse_test(df: pd.DataFrame):
+def full_analyse_test(df: pd.DataFrame, ax:Axes):
 
     # Extract
     original_timestamp = df['original_timestamp'].to_numpy()
@@ -142,39 +146,67 @@ def full_analyse_test(df: pd.DataFrame):
     yaw_rate = df['yaw_rate'].to_numpy()
 
     surge_dot = df['surge_dot'].to_numpy()
+    surge_dot_bias = df['surge_dot_bias'].to_numpy()
     sway_dot = df['sway_dot'].to_numpy()
+    sway_dot_bias = df ['sway_dot_bias'].to_numpy()
     yaw_acc = df['yaw_acc'].to_numpy()
 
     surge_dot_bias = df['surge_dot_bias'].to_numpy()
     sway_dot_bias = df['sway_dot_bias'].to_numpy()
 
-    thr_left = df['thr_left'].to_numpy()
-    thr_right = df['thr_right'].to_numpy()
+    # thr_left = df['thr_left'].to_numpy()
+    # thr_right = df['thr_right'].to_numpy()
+    pwm_rotation = df['pwm_rotation'].to_numpy()
+    pwm_forward = df['pwm_forward'].to_numpy()
 
-    right_force = df['right_force'].to_numpy()
-    left_force = df['left_force'].to_numpy()
+    rotation_force = df["rotation_force"].to_numpy()
+    forward_force = df["forward_force"].to_numpy()
 
-    gps_dot_dot = df["gps_dot_dot"].to_numpy()
+    # right_force = df['right_force'].to_numpy()
+    # left_force = df['left_force'].to_numpy()
 
-    thr_left_pwm_zero_point = df['thr_left_pwm_zero_point'].to_numpy()
-    thr_right_pwm_zero_point = df['thr_right_pwm_zero_point'].to_numpy()
+    gps_y_dot_dot = df["gps_y_dot_dot"].to_numpy()
+    gps_x_dot_dot = df["gps_x_dot_dot"].to_numpy()
+
 
     datapoints = len(df)
     step = 0.1
     end_time = round(datapoints*step, 1)
     t = np.arange(0, end_time, step)
 
+    ## init labels
+
     ## Analyse
+    surge_dot_savgol11 = savgol_filter(surge_dot, window_length=5, polyorder=3)
+    surge_dot_savgol12 = savgol_filter(surge_dot, window_length=11, polyorder=3)
+    surge_dot_savgol13 = savgol_filter(surge_dot, window_length=16, polyorder=3)
+    surge_dot_savgol14 = savgol_filter(surge_dot, window_length=21, polyorder=3)
+
+    surge_dot_savgol21 = savgol_filter(surge_dot, window_length=21, polyorder=1)
+    surge_dot_savgol22 = savgol_filter(surge_dot, window_length=21, polyorder=3)
+    surge_dot_savgol23 = savgol_filter(surge_dot, window_length=21, polyorder=6)
+    surge_dot_savgol24 = savgol_filter(surge_dot, window_length=21, polyorder=8)
+
+    surge_dot_butter11 = butter_lowpass_filter(surge_dot, 0.1, 1/step, order=5)
+    surge_dot_butter12 = butter_lowpass_filter(surge_dot, 0.5, 1/step, order=5)
+    surge_dot_butter13 = butter_lowpass_filter(surge_dot, 1, 1/step, order=5)
+    surge_dot_butter14 = butter_lowpass_filter(surge_dot, 2, 1/step, order=5)
+
+    surge_dot_butter21 = butter_lowpass_filter(surge_dot, 0.5, 1/step, order=1)
+    surge_dot_butter22 = butter_lowpass_filter(surge_dot, 0.5, 1/step, order=3)
+    surge_dot_butter24 = butter_lowpass_filter(surge_dot, 0.5, 1/step, order=6)
+    surge_dot_butter23 = butter_lowpass_filter(surge_dot, 0.5, 1/step, order=8)
+
     surge_dot_savgol = savgol_filter(surge_dot, window_length=21, polyorder=3)
     surge_dot_butter = butter_lowpass_filter(surge_dot, 0.5, 1/step, order=5)
 
     surge_dot_trap = np.zeros(datapoints)
-    surge_dot_trap[1:] = cumtrapz(surge_dot_butter,t, dx=step)
+    surge_dot_trap[1:] = cumulative_trapezoid(surge_dot_butter,t, dx=step)
 
     surge_dot_integrated = fix_dataset.integrate(surge_dot_savgol, 0.1)
 
     sway_dot_filtered = savgol_filter(sway_dot, window_length=21, polyorder=3)
-    sway_dot_integrated = fix_dataset.integrate(sway_dot_filtered, 0.1) 
+    sway_dot_integrated = fix_dataset.integrate(sway_dot_filtered, 0.1)
 
     alpha = 0.95
     surge_fuse = alpha * surge + (1-alpha)*surge_dot_trap
@@ -190,63 +222,117 @@ def full_analyse_test(df: pd.DataFrame):
     yaw_acc_savgol = savgol_filter(yaw_acc, window_length=21, polyorder=2)
     yaw_acc_savgol = butter_lowpass_filter(yaw_acc, 0.5, 1/step)
 
-    # plt.plot(t, surge_dot, label="surge_dot")
-    # plt.plot(t, surge_dot_savgol, label="surge_dot_savgol")
-    # plt.plot(t, surge_dot_butter, label="surge_dot_butter")
+    ## Plotting
+
+    # ax.plot(t, surge_dot, label="Raw")
+
+    # o = 3
+    # ax.plot(t, surge_dot_savgol11, label="$w=5$")
+    # ax.plot(t, surge_dot_savgol12, label="$w=11$")
+    # ax.plot(t, surge_dot_savgol13, label="$w=16$")
+    # ax.plot(t, surge_dot_savgol14, label="$w=21$")
+
+    # w = 21
+    # ax.plot(t, surge_dot_savgol11, label="$o=1$")
+    # ax.plot(t, surge_dot_savgol12, label="$o=3$")
+    # ax.plot(t, surge_dot_savgol13, label="$o=5$")
+    # ax.plot(t, surge_dot_savgol14, label="$o=8$")
+
+    # o = 5
+    # ax.plot(t, surge_dot_butter11, label="$\\omega_c=0.1$")
+    # ax.plot(t, surge_dot_butter12, label="$\\omega_c=0.5$")
+    # ax.plot(t, surge_dot_butter13, label="$\\omega_c=6$")
+    # ax.plot(t, surge_dot_butter14, label="$\\omega_c=8$")
     
-    # plt.plot(t, surge_dot_trap, label="surge trapz")
-    # plt.plot(t, surge_dot_integrated, label="surge int")
-    # plt.plot(t, surge, label="surge der")
-    # plt.plot(t, surge_fuse, label="surge fuse")
+    # omega_c = 0.5
+    # ax.plot(t, surge_dot_butter21, label="$o=1$")
+    # ax.plot(t, surge_dot_butter22, label="$o=3$")
+    # ax.plot(t, surge_dot_butter23, label="$o=6$")
+    # ax.plot(t, surge_dot_butter24, label="$o=8$")
+
+    # ax.plot(t, surge_dot + surge_dot_bias, label="Raw")
+    # ax.plot(t, surge_dot, label="Bias compensated")
+    # ax.plot(t, surge_dot_savgol, label="Filtered from IMU")
+    # ax.plot(t, surge_dot_butter, label="surge_dot_butter")
+    # ax.plot(t, surge_dot_trap, label="surge trapz")
+    # ax.plot(t, gps_x_dot_dot, label="Differentiated from GPS")
+
+    # ax.plot(t, surge, label="surge (differentiate)")
+    # ax.plot(t, surge_dot_integrated, label="surge (integrate)")
+    # ax.plot(t, surge_fuse, label="surge fuse")
+
+    # ax.plot(t, yaw_acc, label="yaw acc")
+    # ax.plot(t, yaw_acc_savgol, label="yaw acc_filt")
+    # ax.plot(t, yaw_rate, label="yaw rate")
+    # ax.plot(t, yaw_rate_savgol, label="yaw rate savgol")
+    # ax.plot(t, yaw_rate_butter, label="yaw rate butter")
+
+    # ax.plot(t, sway_dot + sway_dot_bias[0], label="Raw")
+    # ax.plot(t, sway_dot, label="Bias compensated")
+    # ax.plot(t, sway_dot_filtered, label="Filtered")
+    # ax.ylabel("acceleration in y [m/s^2]")
     #
-    # plt.plot(t, yaw_acc, label="yaw acc")
-    # plt.plot(t, yaw_acc_savgol, label="yaw acc_filt")
-    # plt.plot(t, yaw_rate, label="yaw rate")
-    # plt.plot(t, yaw_rate_savgol, label="yaw rate savgol")
-    # plt.plot(t, yaw_rate_butter, label="yaw rate butter")
+    # ax.plot(t, sway_dot_integrated, label="sway (integrate)")
+    # ax.plot(t, sway, label="sway (differentiate)")
+
+    ax.plot(t, sway_dot_filtered, label="Filtered from IMU")
+    ax.plot(t, gps_y_dot_dot, label="Differentiated from GPS")
+    # ax.plot(t, sway_fuse, label="sway fuse")
+
+    # ax.plot(t, right_force, label="right force")
+    # ax.plot(t, left_force, label="left force")
+    # ax.plot(t, pwm_forward / 100, label="pwm speed C3IN")
+    # ax.plot(t, pwm_rotation / 100, label="pwm rot C1IN")
+
+    # ax.plot(t, rotation_force, label="rotation force")
+    # ax.plot(t, forward_force, label="forward force")
+
+    # ax.plot(y_ned, x_ned)
+    # ax.xlabel("y ned")
+    # ax.ylabel("x ned")
 
 
-    # plt.plot(t, sway_dot, label="sway_dot")
-    # plt.plot(t, sway_dot_filtered, label="sway_dot_filtered")
+    # ax.plot(t, sway, label="sawy")
+    # ax.plot(t, abs_speed, label="abs_speed")
+    # ax.plot(t, max_speed, label="max velcoity")
     
-    # plt.plot(t, sway_dot_integrated, label="sway int")
-    # plt.plot(t, y_ned, label="y")
-    # plt.plot(t, sway, label="sway der")
-    # plt.plot(t, gps_dot_dot, label="gps dot dot")
-    # plt.plot(t, sway_fuse, label="sway fuse")
+    # ax.set_title("Acceleration from IMU and derived from GPS", **matlab_settings["title"])
+    ax.set_title("Acceleration in y-direction", **matlab_settings["title"])
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel("Acceleration [$\\frac{m}{s}$]")
+    # show_plot(True)
+
+if __name__ == "__main__":
+    # filename = "raw_data/00000232.csv"
+    # filename = "raw_data/231.csv"
+    filename = "raw_data/225.csv"
+    # filename = "full_dataset.csv"
+    # raw_df = fake_full()
+    raw_df = pd.read_csv(filename)
+    df = fix_dataset.fix_dataset(raw_df)
+
+    # fig, ax = plt.subplots(figsize=(16,9))
+    fig, ax = plt.subplots()
+    
+    look_like_matlab(ax)
+    full_analyse_test(df, ax)
+
+    ax.legend(**matlab_settings["legend"], loc="upper right")
+    ax.legend(**matlab_settings["legend"])
+    plt.show()
+
+    fig.savefig("gps_acc_v_imu_sway.pdf", format="pdf")
+
+    # plot_all_positions()
     #
-    # plt.plot(t, right_force, label="right force")
-    # plt.plot(t, left_force, label="left force")
-    plt.plot(t, thr_left, label="pwm speed C3IN")
-    plt.plot(t, thr_right, label="pwm rot C1IN")
-
-    # plt.plot(y_ned, x_ned)
-
-
-    # plt.plot(t, sway, label="sawy")
-    # plt.plot(t, abs_speed, label="abs_speed")
-    # plt.plot(t, max_speed, label="max_speed")
-    show_plot(True)
-
-
-
-
-# filename = "raw_data/00000232.csv"
-filename = "raw_data/225.csv"
-# filename = "full_dataset.csv"
-# raw_df = fake_full()
-raw_df = pd.read_csv(filename)
-df = fix_dataset.fix_dataset(raw_df)
-full_analyse_test(df)
-# plot_all_positions()
-
-# step = 0.1
-# end_time = len(df)*step
-# t = np.arange(0, end_time, step)
-#surge_dot = # plot_acc(t, df['surge_dot'].to_numpy(), df['surge'].to_numpy(), df["sway_dot"].to_numpy(), df["sway"].to_numpy())
-#
-# plt.plot(df['x_ned'], df['y_ned'])
-# plt.grid()
-# plt.show()
+    # step = 0.1
+    # end_time = len(df)*step
+    # t = np.arange(0, end_time, step)
+    # surge_dot = # plot_acc(t, df['surge_dot'].to_numpy(), df['surge'].to_numpy(), df["sway_dot"].to_numpy(), df["sway"].to_numpy())
+    #
+    # plt.plot(df['x_ned'], df['y_ned'])
+    # plt.grid()
+    # fig.savefig("project_figures/compare_acceleration_IMU_GPS__surge.png")
+    # plt.show()
 
 

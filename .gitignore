@@ -4,3 +4,4 @@ venv
 FULL_DATASET*
 sorted_data.zip
 __pycache__
+figures/*
